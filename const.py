@@ -1,0 +1,8 @@
+DOMAIN = "panasonic_erv"
+DEFAULT_PORT = 8899
+DEFAULT_NAME = "Panasonic ERV"
+DEFAULT_SCAN_INTERVAL = 30
+
+CONF_HOST = "host"
+CONF_PORT = "port"
+CONF_NAME = "name"
