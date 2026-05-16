@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Pana ERV
 
 Home Assistant 自定义集成：通过**有人 USR** 等 Modbus TCP（RTU 透传）网关控制松下新风（ERV）。
@@ -55,6 +54,3 @@ python scripts/test_modbus.py --host <IP> --test-controls
 ## 许可证
 
 个人项目，按「现状」提供，不保证适配所有机型。
-=======
-# pana_erv
->>>>>>> 9e01305b82774fe424f96b3e32288b63ced9d6cd
