@@ -76,12 +76,24 @@ class PanaErvFan(CoordinatorEntity, FanEntity):
     def extra_state_attributes(self):
         return build_extra_attributes(self.coordinator.data)
 
+    def _update_local_state(self, **fields) -> None:
+        """写入设备后先更新本地状态，界面立即响应，再由轮询/刷新与真机对齐。"""
+        if not self.coordinator.data:
+            return
+        self.coordinator.async_set_updated_data({**self.coordinator.data, **fields})
+
+    async def _write_then_sync(self, **local_fields) -> None:
+        self._update_local_state(**local_fields)
+        await self.coordinator.async_request_refresh()
+
     async def async_turn_on(
         self, percentage: int | None = None, preset_mode: str | None = None, **kwargs
     ) -> None:
         if percentage == 0:
             await self.async_turn_off()
             return
+
+        local: dict = {"power": 1}
 
         await self.hass.async_add_executor_job(self._hub.write_register, REG_POWER, 1)
 
@@ -91,42 +103,46 @@ class PanaErvFan(CoordinatorEntity, FanEntity):
                 await self.hass.async_add_executor_job(
                     self._hub.write_register, REG_MODE, mode_value
                 )
+                local["mode"] = mode_value
 
         if percentage is not None:
             speed = percentage_to_speed(percentage)
             await self.hass.async_add_executor_job(
                 self._hub.write_register, REG_FAN_SPEED, speed
             )
+            local["fan_speed"] = speed
 
-        await self.coordinator.async_request_refresh()
+        await self._write_then_sync(**local)
 
     async def async_turn_off(self, **kwargs) -> None:
         await self.hass.async_add_executor_job(self._hub.write_register, REG_POWER, 0)
-        await self.coordinator.async_request_refresh()
+        await self._write_then_sync(power=0)
 
     async def async_set_percentage(self, percentage: int) -> None:
         if percentage == 0:
             await self.async_turn_off()
             return
 
+        speed = percentage_to_speed(percentage)
         if not self.is_on:
             await self.hass.async_add_executor_job(self._hub.write_register, REG_POWER, 1)
 
-        speed = percentage_to_speed(percentage)
         await self.hass.async_add_executor_job(
             self._hub.write_register, REG_FAN_SPEED, speed
         )
-        await self.coordinator.async_request_refresh()
+        await self._write_then_sync(power=1, fan_speed=speed)
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         mode_value = PRESET_TO_MODE.get(preset_mode)
         if mode_value is None:
             return
 
+        local: dict = {"mode": mode_value}
         if not self.is_on:
             await self.hass.async_add_executor_job(self._hub.write_register, REG_POWER, 1)
+            local["power"] = 1
 
         await self.hass.async_add_executor_job(
             self._hub.write_register, REG_MODE, mode_value
         )
-        await self.coordinator.async_request_refresh()
+        await self._write_then_sync(**local)
