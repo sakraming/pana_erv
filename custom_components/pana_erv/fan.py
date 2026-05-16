@@ -32,7 +32,12 @@ async def async_setup_entry(
 class PanaErvFan(CoordinatorEntity, FanEntity):
     _attr_name = "松下新风"
     _attr_icon = "mdi:air-filter"
-    _attr_supported_features = FanEntityFeature.SET_SPEED | FanEntityFeature.PRESET_MODE
+    _attr_supported_features = (
+        FanEntityFeature.SET_SPEED
+        | FanEntityFeature.PRESET_MODE
+        | FanEntityFeature.TURN_ON
+        | FanEntityFeature.TURN_OFF
+    )
 
     def __init__(self, coordinator, hub, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
@@ -74,6 +79,10 @@ class PanaErvFan(CoordinatorEntity, FanEntity):
     async def async_turn_on(
         self, percentage: int | None = None, preset_mode: str | None = None, **kwargs
     ) -> None:
+        if percentage == 0:
+            await self.async_turn_off()
+            return
+
         await self.hass.async_add_executor_job(self._hub.write_register, REG_POWER, 1)
 
         if preset_mode is not None:
@@ -96,6 +105,10 @@ class PanaErvFan(CoordinatorEntity, FanEntity):
         await self.coordinator.async_request_refresh()
 
     async def async_set_percentage(self, percentage: int) -> None:
+        if percentage == 0:
+            await self.async_turn_off()
+            return
+
         if not self.is_on:
             await self.hass.async_add_executor_job(self._hub.write_register, REG_POWER, 1)
 
